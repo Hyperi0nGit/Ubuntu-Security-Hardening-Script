@@ -759,6 +759,15 @@ We're grateful to everyone who has contributed to making this project better! Th
       <sub>🐛 </sub>
     </td>
     <td align="center">
+      <a href="https://github.com/gainskills">
+        <img src="https://avatars.githubusercontent.com/u/1937472?v=4" width="80px;" alt="gainskills"/><br />
+        <sub><b>gainskills</b></sub>
+      </a><br />
+      <sub>📖 </sub>
+    </td>
+    </tr>
+    <tr>
+    <td align="center">
       <a href="https://github.com/gensecai-dev">
         <img src="https://avatars.githubusercontent.com/u/216218359?v=4" width="80px;" alt="gensecai-dev"/><br />
         <sub><b>gensecai-dev</b></sub>
