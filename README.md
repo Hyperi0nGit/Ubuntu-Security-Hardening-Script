@@ -745,6 +745,13 @@ We're grateful to everyone who has contributed to making this project better! Th
       <sub>💻 🐛 📖 </sub>
     </td>
     <td align="center">
+      <a href="https://github.com/benj-ntu">
+        <img src="https://avatars.githubusercontent.com/u/196352206?v=4" width="80px;" alt="benj-ntu"/><br />
+        <sub><b>benj-ntu</b></sub>
+      </a><br />
+      <sub>🐛 </sub>
+    </td>
+    <td align="center">
       <a href="https://github.com/coderabbitai[bot]">
         <img src="https://avatars.githubusercontent.com/in/347564?v=4" width="80px;" alt="coderabbitai[bot]"/><br />
         <sub><b>coderabbitai[bot]</b></sub>
@@ -758,6 +765,8 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>🐛 </sub>
     </td>
+    </tr>
+    <tr>
     <td align="center">
       <a href="https://github.com/gainskills">
         <img src="https://avatars.githubusercontent.com/u/1937472?v=4" width="80px;" alt="gainskills"/><br />
@@ -765,8 +774,6 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>📖 </sub>
     </td>
-    </tr>
-    <tr>
     <td align="center">
       <a href="https://github.com/gensecai-dev">
         <img src="https://avatars.githubusercontent.com/u/216218359?v=4" width="80px;" alt="gensecai-dev"/><br />
