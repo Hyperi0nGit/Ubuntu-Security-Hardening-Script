@@ -104,6 +104,57 @@ validate_frequency() {
     esac
 }
 
+# Function to detect desktop environment (Fix for Issue #12)
+detect_desktop_environment() {
+    # Check for display managers
+    if systemctl is-active --quiet gdm 2>/dev/null || \
+       systemctl is-active --quiet gdm3 2>/dev/null || \
+       systemctl is-active --quiet lightdm 2>/dev/null || \
+       systemctl is-active --quiet sddm 2>/dev/null; then
+        echo "true"
+        return
+    fi
+
+    # Check for DISPLAY or WAYLAND environment
+    if [[ -n "${DISPLAY:-}" ]] || [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+        echo "true"
+        return
+    fi
+
+    # Check for desktop packages
+    if dpkg -l 2>/dev/null | grep -qE "ubuntu-desktop|kubuntu-desktop|xubuntu-desktop|gnome-shell|kde-plasma-desktop"; then
+        echo "true"
+        return
+    fi
+
+    # Check for running desktop sessions
+    if pgrep -x "gnome-shell" > /dev/null 2>&1 || \
+       pgrep -x "plasmashell" > /dev/null 2>&1 || \
+       pgrep -x "xfce4-session" > /dev/null 2>&1; then
+        echo "true"
+        return
+    fi
+
+    echo "false"
+}
+
+# Function to check if SSH keys exist (Fix for SSH lockout issue)
+check_ssh_keys_exist() {
+    local has_keys=false
+
+    # Check for authorized_keys in common locations
+    for user_home in /root /home/*; do
+        if [[ -d "$user_home" ]] && [[ -f "${user_home}/.ssh/authorized_keys" ]]; then
+            if [[ -s "${user_home}/.ssh/authorized_keys" ]]; then
+                has_keys=true
+                break
+            fi
+        fi
+    done
+
+    echo "$has_keys"
+}
+
 # Function to update and upgrade packages
 update_system() {
     print_message "$GREEN" "Updating package lists..."
@@ -280,17 +331,61 @@ EOF
 }
 
 # Function to configure AppArmor
+# Fix for Issue #12: Desktop environment detection to prevent breaking GUI apps
 configure_apparmor() {
     print_message "$GREEN" "Configuring AppArmor..."
-    
+
+    # Detect if running on desktop environment
+    local is_desktop
+    is_desktop=$(detect_desktop_environment)
+
     # Enable AppArmor
     systemctl enable apparmor || error_exit "Failed to enable AppArmor"
     systemctl start apparmor || error_exit "Failed to start AppArmor"
-    
-    # Set all profiles to enforce mode
-    aa-enforce /etc/apparmor.d/* 2>/dev/null || print_message "$YELLOW" "WARNING: Some AppArmor profiles could not be enforced"
-    
-    print_message "$GREEN" "AppArmor profiles enforced"
+
+    if [[ "$is_desktop" == "true" ]]; then
+        # Desktop environment detected - use complain mode for extra profiles
+        print_message "$YELLOW" "Desktop environment detected!"
+        print_message "$YELLOW" "Using COMPLAIN mode for experimental AppArmor profiles to prevent breaking GUI applications."
+
+        # Only enforce known-safe profiles that won't break desktop apps
+        local safe_profiles=(
+            "/etc/apparmor.d/usr.sbin.sshd"
+            "/etc/apparmor.d/usr.sbin.rsyslogd"
+            "/etc/apparmor.d/usr.sbin.cron"
+            "/etc/apparmor.d/usr.sbin.ntpd"
+        )
+
+        for profile in "${safe_profiles[@]}"; do
+            if [[ -f "$profile" ]]; then
+                aa-enforce "$profile" 2>/dev/null || true
+            fi
+        done
+
+        # Set extra profiles to complain mode (monitor but don't block)
+        if [[ -d /usr/share/apparmor/extra-profiles/ ]]; then
+            for profile in /usr/share/apparmor/extra-profiles/*; do
+                if [[ -f "$profile" ]]; then
+                    aa-complain "$profile" 2>/dev/null || true
+                fi
+            done
+        fi
+
+        print_message "$GREEN" "AppArmor configured with desktop-safe settings"
+    else
+        # Server environment - apply full hardening
+        print_message "$GREEN" "Server environment detected. Applying full AppArmor enforcement..."
+
+        # Install additional profiles
+        if [[ -d /usr/share/apparmor/extra-profiles/ ]]; then
+            cp -n /usr/share/apparmor/extra-profiles/* /etc/apparmor.d/ 2>/dev/null || true
+        fi
+
+        # Set all profiles to enforce mode
+        aa-enforce /etc/apparmor.d/* 2>/dev/null || print_message "$YELLOW" "WARNING: Some AppArmor profiles could not be enforced"
+
+        print_message "$GREEN" "AppArmor profiles enforced"
+    fi
 }
 
 # Function to configure ClamAV
@@ -430,17 +525,22 @@ EOF
 }
 
 # Function to configure Fail2ban
+# Fix: Made less aggressive to prevent locking out legitimate users
 configure_fail2ban() {
     print_message "$GREEN" "Configuring Fail2ban..."
-    
+
     backup_file "/etc/fail2ban/jail.conf"
-    
+
     # Create local jail configuration
+    # Fix: Increased maxretry and reduced initial bantime to prevent legitimate user lockouts
     cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
-ignoreip = 127.0.0.1/8 ::1
-bantime = 3600
-findtime = 600
+# NOTE: Settings adjusted to prevent locking out legitimate users
+# Ignore localhost and private networks
+# Add your CI/CD, monitoring, and trusted IPs here
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+bantime = 10m
+findtime = 10m
 maxretry = 5
 backend = systemd
 usedns = warn
@@ -451,33 +551,78 @@ protocol = tcp
 chain = INPUT
 action = %(action_mwl)s
 
+# Progressive ban time - doubles with each offense (requires fail2ban 0.11+)
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 1d
+
 [sshd]
 enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 3
-bantime = 7200
+maxretry = 5
+bantime = 10m
+findtime = 10m
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 10
+findtime = 5m
+bantime = 10m
 EOF
 
     # Restart fail2ban
     systemctl restart fail2ban
     systemctl enable fail2ban
-    
-    print_message "$GREEN" "Fail2ban configured"
+
+    print_message "$GREEN" "Fail2ban configured with progressive banning"
 }
 
 # Function to harden SSH configuration
+# Fix: Check for SSH keys before disabling password authentication
 harden_ssh() {
     print_message "$GREEN" "Hardening SSH configuration..."
 
     backup_file "/etc/ssh/sshd_config"
 
+    # Check for existing SSH keys before disabling password authentication
+    local has_keys
+    has_keys=$(check_ssh_keys_exist)
+    local password_auth="no"
+
+    if [[ "$has_keys" == "false" ]]; then
+        print_message "$RED" "╔══════════════════════════════════════════════════════════════╗"
+        print_message "$RED" "║           ⚠️  WARNING: NO SSH KEYS FOUND                      ║"
+        print_message "$RED" "╠══════════════════════════════════════════════════════════════╣"
+        print_message "$RED" "║ No SSH authorized_keys files found on this system.           ║"
+        print_message "$RED" "║ Disabling password authentication will LOCK YOU OUT!         ║"
+        print_message "$RED" "║                                                              ║"
+        print_message "$RED" "║ Options:                                                     ║"
+        print_message "$RED" "║ 1. Add SSH keys first, then re-run this script               ║"
+        print_message "$RED" "║ 2. Keep password authentication enabled (less secure)        ║"
+        print_message "$RED" "╚══════════════════════════════════════════════════════════════╝"
+
+        read -p "Keep password authentication enabled? (Y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            print_message "$YELLOW" "Password authentication will remain ENABLED for safety"
+            password_auth="yes"
+        else
+            print_message "$RED" "Proceeding with password authentication DISABLED - ensure you have console access!"
+        fi
+    else
+        print_message "$GREEN" "SSH keys found. Safe to disable password authentication."
+    fi
+
     # Create SSH config directory if it doesn't exist (for Ubuntu 18.04/20.04 compatibility)
     mkdir -p /etc/ssh/sshd_config.d/
 
     # Create hardened SSH config
-    cat > /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
+    cat > /etc/ssh/sshd_config.d/99-hardening.conf << EOF
 # SSH Hardening Configuration
 Protocol 2
 Port 22
@@ -487,12 +632,23 @@ ListenAddress 0.0.0.0
 # Authentication
 PermitRootLogin no
 PubkeyAuthentication yes
-PasswordAuthentication no
+PasswordAuthentication ${password_auth}
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 UsePAM yes
 MaxAuthTries 3
 MaxSessions 10
+EOF
+
+    # Add AuthenticationMethods based on password_auth setting
+    if [[ "$password_auth" == "yes" ]]; then
+        echo "AuthenticationMethods publickey,password" >> /etc/ssh/sshd_config.d/99-hardening.conf
+    else
+        echo "AuthenticationMethods publickey" >> /etc/ssh/sshd_config.d/99-hardening.conf
+    fi
+
+    # Continue with the rest of the config
+    cat >> /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
 
 # Security
 StrictModes yes
@@ -528,29 +684,51 @@ EOF
 
     # Test SSH configuration
     sshd -t || error_exit "SSH configuration test failed"
-    
+
     # Restart SSH
     systemctl restart sshd
-    
-    print_message "$GREEN" "SSH hardened"
-    print_message "$YELLOW" "WARNING: Password authentication disabled. Ensure you have SSH keys configured!"
+
+    print_message "$GREEN" "SSH hardened successfully"
+    if [[ "$password_auth" == "yes" ]]; then
+        print_message "$YELLOW" "NOTE: Password authentication ENABLED (no SSH keys found)"
+        print_message "$YELLOW" "Recommendation: Add SSH keys and re-run this script for better security"
+    else
+        print_message "$YELLOW" "WARNING: Password authentication is disabled. Ensure SSH keys are configured!"
+    fi
 }
 
 # Function to configure system security limits
+# Fix: Increased limits to support production workloads without breaking services
 configure_limits() {
     print_message "$GREEN" "Configuring system security limits..."
-    
+
     backup_file "/etc/security/limits.conf"
-    
+
     # Add security limits
+    # NOTE: Limits increased from original values to support production workloads
+    # Original: nproc 512/1024, maxlogins 10 - too restrictive for many use cases
     cat >> /etc/security/limits.conf << 'EOF'
 
-# Security limits
+# Security limits (Production-ready values)
+# Disable core dumps (security - prevents sensitive data leakage)
 * soft core 0
 * hard core 0
-* hard maxlogins 10
-* soft nproc 512
-* hard nproc 1024
+
+# Limit number of processes (increased for production workloads)
+# Original was 512/1024 which breaks many applications
+* soft nproc 4096
+* hard nproc 8192
+root soft nproc unlimited
+root hard nproc unlimited
+
+# Limit number of open files (sufficient for most applications)
+* soft nofile 65536
+* hard nofile 65536
+
+# Limit max number of logins (increased for multi-user systems)
+# Original was 10 which is too restrictive for busy servers
+* soft maxlogins 50
+* hard maxlogins 50
 EOF
 
     print_message "$GREEN" "Security limits configured"
@@ -910,7 +1088,8 @@ main() {
     print_message "$GREEN" "======================================="
     print_message "$GREEN" "Hardening process completed successfully!"
     print_message "$GREEN" "Report available at: $REPORT_FILE"
-    print_message "$YELLOW" "IMPORTANT: Review the report and ensure you have SSH key access before logging out!"
+    print_message "$RED" "CRITICAL: Verify SSH access from another terminal before disconnecting!"
+    print_message "$YELLOW" "Review SSH settings in /etc/ssh/sshd_config.d/99-hardening.conf"
     print_message "$GREEN" "======================================="
 }
 
