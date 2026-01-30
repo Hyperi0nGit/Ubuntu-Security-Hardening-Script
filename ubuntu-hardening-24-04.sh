@@ -7,10 +7,10 @@
 # Specifically optimized for Ubuntu 24.04 LTS (Noble Numbat)
 
 # DISCLAIMER:
-# This script is provided "AS IS" without warranty of any kind, express or implied. 
-# The author expressly disclaims any and all warranties, express or implied, including 
-# any warranties as to the usability, suitability or effectiveness of any methods or 
-# measures this script attempts to apply. By using this script, you agree that the 
+# This script is provided "AS IS" without warranty of any kind, express or implied.
+# The author expressly disclaims any and all warranties, express or implied, including
+# any warranties as to the usability, suitability or effectiveness of any methods or
+# measures this script attempts to apply. By using this script, you agree that the
 # author shall not be held liable for any damages resulting from the use of this script.
 
 set -euo pipefail  # Exit on error, undefined variables, pipe failures
@@ -82,12 +82,12 @@ check_ubuntu_version() {
     if ! command -v lsb_release &> /dev/null; then
         error_exit "lsb_release not found. Is this Ubuntu?"
     fi
-    
+
     local version=$(lsb_release -rs)
     local codename=$(lsb_release -cs)
-    
+
     print_message "$GREEN" "Detected Ubuntu version: $version ($codename)"
-    
+
     if [[ "$version" != "$UBUNTU_VERSION" ]]; then
         print_message "$YELLOW" "WARNING: This script is optimized for Ubuntu 24.04 LTS"
         print_message "$YELLOW" "Current version: $version"
@@ -102,19 +102,19 @@ check_ubuntu_version() {
 # Function to check system requirements
 check_system_requirements() {
     print_message "$GREEN" "Checking system requirements..."
-    
+
     # Check available disk space (minimum 2GB)
     local available_space=$(df / | awk 'NR==2 {print $4}')
     if [[ $available_space -lt 2097152 ]]; then
         error_exit "Insufficient disk space. At least 2GB required."
     fi
-    
+
     # Check memory (minimum 1GB)
     local total_memory=$(free -m | awk 'NR==2 {print $2}')
     if [[ $total_memory -lt 1024 ]]; then
         print_message "$YELLOW" "WARNING: Low memory detected. Some operations may be slow."
     fi
-    
+
     # Check if running in container
     if systemd-detect-virt -c &>/dev/null; then
         print_message "$YELLOW" "WARNING: Running in a container. Some features may not work."
@@ -201,22 +201,22 @@ check_ssh_keys_exist() {
 # Function to update and upgrade packages with Ubuntu Pro integration
 update_system() {
     print_message "$GREEN" "Updating package lists..."
-    
+
     # Check for Ubuntu Pro status
     if command -v pro &> /dev/null; then
         print_message "$BLUE" "Checking Ubuntu Pro status..."
         pro status --format=json > "${LOG_DIR}/ubuntu-pro-status.json" 2>/dev/null || true
     fi
-    
+
     # Update package lists
     apt-get update -y || error_exit "Failed to update package lists"
-    
+
     # Upgrade packages
     print_message "$GREEN" "Upgrading installed packages..."
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
         -o Dpkg::Options::="--force-confdef" \
         -o Dpkg::Options::="--force-confold" || error_exit "Failed to upgrade packages"
-    
+
     # Perform distribution upgrade if available
     DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y \
         -o Dpkg::Options::="--force-confdef" \
@@ -226,42 +226,42 @@ update_system() {
 # Function to install required packages for Ubuntu 24.04
 install_packages() {
     print_message "$GREEN" "Installing security tools and packages..."
-    
+
     # Core security packages for Ubuntu 24.04
     local packages=(
         # File integrity and monitoring
         "aide"
         "aide-common"
         "tripwire"
-        
+
         # Auditing and compliance
         "auditd"
         "audispd-plugins"
         "auditd-plugin-clickhouse"
-        
+
         # System integrity
         "debsums"
         "apt-listchanges"
         "needrestart"
         "debsecan"
-        
+
         # Access control
         "apparmor"
         "apparmor-utils"
         "apparmor-profiles"
         "apparmor-profiles-extra"
         "apparmor-notify"
-        
+
         # Antivirus and malware detection
         "clamav"
         "clamav-daemon"
         "clamav-freshclam"
         "clamdscan"
-        
+
         # Automatic updates
         "unattended-upgrades"
         "update-notifier-common"
-        
+
         # Firewall
         "ufw"
         "gufw"
@@ -271,17 +271,17 @@ install_packages() {
         "fail2ban-systemd"
         "psad"
         "snort"
-        
+
         # Rootkit detection
         "rkhunter"
         "chkrootkit"
         "unhide"
-        
+
         # Security auditing
         "lynis"
         "tiger"
         "nmap"
-        
+
         # Authentication and PAM
         "libpam-pwquality"
         "libpam-tmpdir"
@@ -289,36 +289,36 @@ install_packages() {
         "libpam-cap"
         "libpam-modules-bin"
         "libpam-faillock"
-        
+
         # Cryptography
         "cryptsetup"
         "cryptsetup-initramfs"
         "ecryptfs-utils"
-        
+
         # SELinux tools (optional but recommended)
         "selinux-utils"
         "selinux-policy-default"
-        
+
         # Network security
         "arpwatch"
         "net-tools"
         "iftop"
         "tcpdump"
-        
+
         # System monitoring
         "sysstat"
         "acct"
         "aide-dynamic"
-        
+
         # Ubuntu 24.04 specific
         "ubuntu-advantage-tools"
         "systemd-oomd"
         "systemd-homed"
     )
-    
+
     # Install OpenSCAP for Ubuntu 24.04
     packages+=("libopenscap8" "openscap-scanner" "openscap-utils" "scap-security-guide")
-    
+
     # Install packages with error handling
     for package in "${packages[@]}"; do
         print_message "$GREEN" "Installing $package..."
@@ -326,7 +326,7 @@ install_packages() {
             print_message "$YELLOW" "WARNING: Failed to install $package (may not be available)"
         fi
     done
-    
+
     # Enable additional Ubuntu Pro features if available
     if command -v pro &> /dev/null && pro status | grep -q "entitled"; then
         print_message "$BLUE" "Enabling Ubuntu Pro security features..."
@@ -338,9 +338,9 @@ install_packages() {
 # Function to configure AIDE with Ubuntu 24.04 optimizations
 configure_aide() {
     print_message "$GREEN" "Configuring AIDE file integrity checker..."
-    
+
     backup_file "/etc/aide/aide.conf"
-    
+
     # Configure AIDE for Ubuntu 24.04
     cat >> /etc/aide/aide.conf << 'EOF'
 
@@ -362,14 +362,14 @@ EOF
     # Initialize AIDE database
     print_message "$GREEN" "Initializing AIDE database (this may take several minutes)..."
     aideinit || error_exit "Failed to initialize AIDE"
-    
+
     # Move database to production location
     if [[ -f /var/lib/aide/aide.db.new ]]; then
         mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
         chmod 600 /var/lib/aide/aide.db
         print_message "$GREEN" "AIDE database initialized successfully"
     fi
-    
+
     # Create systemd timer for AIDE checks (Ubuntu 24.04 preferred method)
     cat > /etc/systemd/system/aide-check.service << 'EOF'
 [Unit]
@@ -410,10 +410,10 @@ EOF
 # Function to configure Auditd with Ubuntu 24.04 enhancements
 configure_auditd() {
     print_message "$GREEN" "Configuring auditd with Ubuntu 24.04 optimizations..."
-    
+
     backup_file "/etc/audit/auditd.conf"
     backup_file "/etc/audit/rules.d/audit.rules"
-    
+
     # Configure auditd for Ubuntu 24.04
     cat > /etc/audit/auditd.conf << 'EOF'
 # Ubuntu 24.04 Optimized Audit Configuration
@@ -617,7 +617,7 @@ EOF
     augenrules --load
     systemctl restart auditd
     systemctl enable auditd
-    
+
     # Configure audit log rotation
     cat > /etc/logrotate.d/audit << 'EOF'
 /var/log/audit/*.log {
@@ -709,11 +709,11 @@ configure_apparmor() {
 # Function to configure ClamAV with Ubuntu 24.04 optimizations
 configure_clamav() {
     print_message "$GREEN" "Configuring ClamAV with performance optimizations..."
-    
+
     # Configure ClamAV for Ubuntu 24.04
     backup_file "/etc/clamav/clamd.conf"
     backup_file "/etc/clamav/freshclam.conf"
-    
+
     # Optimize ClamAV configuration
     cat >> /etc/clamav/clamd.conf << 'EOF'
 
@@ -742,26 +742,26 @@ EOF
 
     # Configure freshclam for automatic updates
     sed -i 's/^Checks.*/Checks 24/' /etc/clamav/freshclam.conf 2>/dev/null || true
-    
+
     # Stop services for configuration
     systemctl stop clamav-freshclam
     systemctl stop clamav-daemon
-    
+
     # Update virus database
     print_message "$GREEN" "Updating ClamAV virus database..."
     freshclam || print_message "$YELLOW" "WARNING: Failed to update ClamAV database"
-    
+
     # Start and enable services
     systemctl start clamav-freshclam
     systemctl start clamav-daemon
     systemctl enable clamav-freshclam
     systemctl enable clamav-daemon
-    
+
     # Get scan frequency
     print_message "$GREEN" "Please enter how often you want ClamAV scans to run (daily/weekly/monthly):"
     read -r scan_frequency
     scan_frequency=$(validate_frequency "$scan_frequency")
-    
+
     # Create systemd timer for scans (Ubuntu 24.04 preferred)
     cat > /etc/systemd/system/clamav-scan.service << 'EOF'
 [Unit]
@@ -811,7 +811,7 @@ if grep -q "Infected files:" "$LOG_FILE" && grep -q "Infected files: [1-9]" "$LO
 fi
 EOF
     chmod 755 /usr/local/bin/clamav-scan.sh
-    
+
     # Create timer based on frequency
     case "$scan_frequency" in
         daily)
@@ -827,7 +827,7 @@ EOF
             timer_schedule="weekly"
             ;;
     esac
-    
+
     cat > /etc/systemd/system/clamav-scan.timer << EOF
 [Unit]
 Description=Run ClamAV scan $scan_frequency
@@ -845,16 +845,16 @@ EOF
     systemctl daemon-reload
     systemctl enable clamav-scan.timer
     systemctl start clamav-scan.timer
-    
+
     print_message "$GREEN" "ClamAV configured with $scan_frequency scans"
 }
 
 # Function to configure automatic updates for Ubuntu 24.04
 configure_unattended_upgrades() {
     print_message "$GREEN" "Configuring automatic security updates for Ubuntu 24.04..."
-    
+
     backup_file "/etc/apt/apt.conf.d/50unattended-upgrades"
-    
+
     # Configure unattended-upgrades for Ubuntu 24.04
     cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'EOF'
 // Ubuntu 24.04 Automatic Updates Configuration
@@ -918,7 +918,7 @@ EOF
 DPkg::Post-Invoke { "if [ -d /var/lib/update-notifier ]; then touch /var/lib/update-notifier/dpkg-run-stamp; fi"; };
 EOF
     fi
-    
+
     # Configure needrestart for automatic service restarts
     if command -v needrestart &> /dev/null; then
         cat > /etc/needrestart/conf.d/auto.conf << 'EOF'
@@ -928,7 +928,7 @@ $nrconf{restart} = 'a';
 $nrconf{kernelhints} = 0;
 EOF
     fi
-    
+
     systemctl restart unattended-upgrades
     systemctl enable unattended-upgrades
 }
@@ -944,18 +944,18 @@ configure_ufw() {
     fi
 
     backup_file "/etc/default/ufw"
-    
+
     # Enable IPv6 support
     sed -i 's/IPV6=.*/IPV6=yes/' /etc/default/ufw
-    
+
     # Reset firewall to defaults
     ufw --force reset
-    
+
     # Set default policies
     ufw default deny incoming
     ufw default allow outgoing
     ufw default deny routed
-    
+
     # Configure logging
     ufw logging on
     ufw logging medium
@@ -979,20 +979,20 @@ EOF
 
     # Basic rules with rate limiting
     ufw limit 22/tcp comment 'SSH rate limit'
-    
+
     # Allow DHCP client (important for cloud instances)
     ufw allow 68/udp comment 'DHCP client'
-    
+
     # Enable firewall
     echo "y" | ufw enable
-    
+
     # Save firewall rules with netfilter-persistent (if available)
     # Note: iptables-persistent removed to avoid conflicts with UFW (Fix for Issue #4)
     if command -v netfilter-persistent &> /dev/null; then
         netfilter-persistent save
         systemctl enable netfilter-persistent
     fi
-    
+
     print_message "$GREEN" "UFW firewall configured and enabled"
     print_message "$YELLOW" "NOTE: Only SSH (rate-limited) and DHCP are allowed"
 }
@@ -1093,7 +1093,7 @@ EOF
 
     # Create custom filters
     mkdir -p /etc/fail2ban/filter.d
-    
+
     # Port scan filter
     cat > /etc/fail2ban/filter.d/port-scan.conf << 'EOF'
 [Definition]
@@ -1104,7 +1104,7 @@ EOF
     # Restart fail2ban
     systemctl restart fail2ban
     systemctl enable fail2ban
-    
+
     print_message "$GREEN" "Fail2ban configured with systemd integration"
 }
 
@@ -1297,7 +1297,7 @@ CERTDOC
 
     # Test configuration
     sshd -t || error_exit "SSH configuration test failed"
-    
+
     # Create SSH banner
     cat > /etc/issue.net << 'EOF'
 ********************************************************************************
@@ -1306,12 +1306,12 @@ CERTDOC
 * law. By accessing this system, you consent to monitoring and recording.      *
 ********************************************************************************
 EOF
-    
+
     # Update main sshd_config to use banner
     echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config.d/99-hardening.conf
-    
-    # Restart SSH service
-    systemctl restart sshd
+
+    # Restart SSH service (Ubuntu 24.04 uses socket activation)
+    systemctl restart ssh.socket
 
     print_message "$GREEN" "SSH hardened successfully"
     if [[ "$password_auth" == "no" ]]; then
@@ -1399,9 +1399,9 @@ EOF
 # Function to configure kernel parameters for Ubuntu 24.04
 configure_sysctl() {
     print_message "$GREEN" "Configuring kernel security parameters for Ubuntu 24.04..."
-    
+
     backup_file "/etc/sysctl.conf"
-    
+
     # Create comprehensive sysctl security configuration
     cat > /etc/sysctl.d/99-security-hardening.conf << 'EOF'
 # Ubuntu 24.04 Kernel Security Hardening
@@ -1461,7 +1461,7 @@ net.ipv4.conf.all.arp_announce = 2
 ### Kernel Security ###
 
 # Enable ExecShield (if available)
-kernel.exec-shield = 1
+# kernel.exec-shield = 1
 kernel.randomize_va_space = 2
 
 # Restrict dmesg
@@ -1502,8 +1502,8 @@ kernel.unprivileged_userns_clone = 0
 
 # Ubuntu 24.04 specific
 kernel.unprivileged_bpf_disabled = 1
-net.core.bpf_jit_enable = 0
-kernel.modules_disabled = 0
+# net.core.bpf_jit_enable = 0
+# kernel.modules_disabled = 0
 kernel.io_uring_disabled = 2
 
 ### IPv6 Security (disable if not needed) ###
@@ -1620,26 +1620,26 @@ configure_openscap() {
         print_message "$YELLOW" "OpenSCAP not available, skipping configuration"
         return
     fi
-    
+
     print_message "$GREEN" "Configuring OpenSCAP for Ubuntu 24.04..."
-    
+
     # Get scan frequency
     print_message "$GREEN" "Please enter how often you want OpenSCAP scans to run (daily/weekly/monthly):"
     read -r oscap_frequency
     oscap_frequency=$(validate_frequency "$oscap_frequency")
-    
+
     # Find the appropriate SCAP content
     local ssg_file="/usr/share/xml/scap/ssg/content/ssg-ubuntu2204-ds.xml"
     if [[ ! -f "$ssg_file" ]]; then
         # Try alternative location
         ssg_file="/usr/share/openscap/ssg/ssg-ubuntu2204-ds.xml"
     fi
-    
+
     if [[ ! -f "$ssg_file" ]]; then
         print_message "$YELLOW" "WARNING: SCAP Security Guide content not found"
         return
     fi
-    
+
     # Create enhanced scan script with profile selection
     cat > /usr/local/bin/openscap-scan.sh << EOF
 #!/bin/bash
@@ -1693,7 +1693,7 @@ echo "Remediation: \$REPORT_DIR/remediation_\${TIMESTAMP}.sh"
 exit \$SCAN_RESULT
 EOF
     chmod 755 /usr/local/bin/openscap-scan.sh
-    
+
     # Create systemd timer
     cat > /etc/systemd/system/openscap-scan.service << 'EOF'
 [Unit]
@@ -1724,7 +1724,7 @@ EOF
             timer_schedule="weekly"
             ;;
     esac
-    
+
     cat > /etc/systemd/system/openscap-scan.timer << EOF
 [Unit]
 Description=Run OpenSCAP scan $oscap_frequency
@@ -1742,23 +1742,23 @@ EOF
     systemctl daemon-reload
     systemctl enable openscap-scan.timer
     systemctl start openscap-scan.timer
-    
+
     print_message "$GREEN" "OpenSCAP configured with $oscap_frequency scans"
 }
 
 # Function to configure additional Ubuntu 24.04 security features
 configure_ubuntu_24_features() {
     print_message "$GREEN" "Configuring Ubuntu 24.04 specific security features..."
-    
+
     # Configure systemd security features
     print_message "$BLUE" "Configuring systemd security features..."
-    
+
     # Enable systemd-oomd (Out of Memory Daemon)
     if systemctl list-unit-files | grep -q systemd-oomd; then
         systemctl enable systemd-oomd
         systemctl start systemd-oomd
     fi
-    
+
     # Configure enhanced systemd service sandboxing
     print_message "$BLUE" "Applying enhanced systemd service sandboxing..."
 
@@ -1832,7 +1832,7 @@ EOF
     systemctl daemon-reload
 
     print_message "$GREEN" "Systemd service sandboxing applied"
-    
+
     # Configure DNSStubListener if using systemd-resolved
     if systemctl is-active systemd-resolved; then
         mkdir -p /etc/systemd/resolved.conf.d/
@@ -1844,14 +1844,14 @@ DNSOverTLS=opportunistic
 EOF
         systemctl restart systemd-resolved
     fi
-    
+
     # Configure snap security
     if command -v snap &> /dev/null; then
         print_message "$BLUE" "Hardening snap security..."
         # Refresh snaps to ensure latest security updates
         snap refresh || true
     fi
-    
+
     # Configure netplan security (if used)
     if command -v netplan &> /dev/null && [[ -d /etc/netplan ]]; then
         print_message "$BLUE" "Securing netplan configuration..."
@@ -1986,30 +1986,30 @@ IMDSEOF
 # Function to perform security audits
 perform_security_audit() {
     print_message "$GREEN" "Performing initial security audit..."
-    
+
     local audit_dir="${LOG_DIR}/initial-audit"
     mkdir -p "$audit_dir"
-    
+
     # Run Lynis audit
     if command -v lynis &> /dev/null; then
         print_message "$BLUE" "Running Lynis security audit..."
         lynis audit system --quick --quiet --report-file "$audit_dir/lynis-report.txt" || true
     fi
-    
+
     # Run rkhunter
     if command -v rkhunter &> /dev/null; then
         print_message "$BLUE" "Running rkhunter check..."
         rkhunter --update || true
         rkhunter --check --skip-keypress --report-file "$audit_dir/rkhunter-report.txt" || true
     fi
-    
+
     # Check for listening services
     print_message "$BLUE" "Checking listening services..."
     ss -tulpn > "$audit_dir/listening-services.txt" 2>&1
-    
+
     # Check for running processes
     ps auxf > "$audit_dir/running-processes.txt" 2>&1
-    
+
     # Check system users
     awk -F: '$3 >= 1000 {print $1}' /etc/passwd > "$audit_dir/system-users.txt"
 
@@ -2097,7 +2097,7 @@ EOF
 # Function to generate comprehensive report
 generate_report() {
     print_message "$GREEN" "Generating comprehensive hardening report..."
-    
+
     cat > "$REPORT_FILE" << EOF
 Ubuntu 24.04 LTS Security Hardening Report
 ==========================================
@@ -2275,14 +2275,14 @@ EOF
 
     # Set appropriate permissions
     chmod 600 "$REPORT_FILE"
-    
+
     print_message "$GREEN" "Comprehensive report saved to: $REPORT_FILE"
 }
 
 # Function to perform final system checks
 final_system_checks() {
     print_message "$GREEN" "Performing final system checks..."
-    
+
     # Check critical services
     local services=(
         "auditd"
@@ -2294,7 +2294,7 @@ final_system_checks() {
         "unattended-upgrades"
         "systemd-resolved"
     )
-    
+
     print_message "$BLUE" "Service Status:"
     for service in "${services[@]}"; do
         if systemctl is-active --quiet "$service" 2>/dev/null; then
@@ -2303,7 +2303,7 @@ final_system_checks() {
             print_message "$YELLOW" "  ⚠ $service is not running (may not be required)"
         fi
     done
-    
+
     # Check firewall
     print_message "$BLUE" "Firewall Status:"
     if ufw status | grep -q "Status: active"; then
@@ -2312,7 +2312,7 @@ final_system_checks() {
     else
         print_message "$RED" "  ✗ UFW firewall is not active"
     fi
-    
+
     # Check for updates
     print_message "$BLUE" "Checking for remaining updates..."
     if apt-get -s upgrade | grep -q "0 upgraded"; then
@@ -2334,17 +2334,17 @@ main() {
     print_message "$GREEN" "╚══════════════════════════════════════════════════════╝"
     check_ubuntu_version
     check_system_requirements
-    
+
     # Create system restore point notification
     print_message "$YELLOW" "Consider creating a system backup/snapshot before proceeding"
     read -p "Press Enter to continue or Ctrl+C to cancel..."
-    
+
     # Main hardening process
     print_message "$GREEN" "Starting security hardening process..."
-    
+
     update_system
     install_packages
-    
+
     # Core security configurations
     configure_aide
     configure_auditd
@@ -2370,7 +2370,7 @@ main() {
     generate_report
     generate_compliance_json
     final_system_checks
-    
+
     # Completion
     print_message "$GREEN" "╔══════════════════════════════════════════════════════╗"
     print_message "$GREEN" "║        Security Hardening Completed Successfully!     ║"

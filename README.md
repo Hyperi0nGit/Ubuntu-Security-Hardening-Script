@@ -729,20 +729,57 @@ We're grateful to everyone who has contributed to making this project better! Th
       <sub>🐛 </sub>
     </td>
     <td align="center">
+      <a href="https://github.com/actions-user">
+        <img src="https://avatars.githubusercontent.com/u/65916846?v=4" width="80px;" alt="actions-user"/><br />
+        <sub><b>actions-user</b></sub>
+      </a><br />
+      <sub>💻 </sub>
+    </td>
+    </tr>
+    <tr>
+    <td align="center">
       <a href="https://github.com/alokemajumder">
         <img src="https://avatars.githubusercontent.com/u/26596583?v=4" width="80px;" alt="alokemajumder"/><br />
         <sub><b>alokemajumder</b></sub>
       </a><br />
       <sub>💻 🐛 📖 </sub>
     </td>
+    <td align="center">
+      <a href="https://github.com/benj-ntu">
+        <img src="https://avatars.githubusercontent.com/u/196352206?v=4" width="80px;" alt="benj-ntu"/><br />
+        <sub><b>benj-ntu</b></sub>
+      </a><br />
+      <sub>🐛 </sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/coderabbitai[bot]">
+        <img src="https://avatars.githubusercontent.com/in/347564?v=4" width="80px;" alt="coderabbitai[bot]"/><br />
+        <sub><b>coderabbitai[bot]</b></sub>
+      </a><br />
+      <sub>💬</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/cropduster32">
+        <img src="https://avatars.githubusercontent.com/u/76622404?v=4" width="80px;" alt="cropduster32"/><br />
+        <sub><b>cropduster32</b></sub>
+      </a><br />
+      <sub>🐛 </sub>
+    </td>
     </tr>
     <tr>
+    <td align="center">
+      <a href="https://github.com/gainskills">
+        <img src="https://avatars.githubusercontent.com/u/1937472?v=4" width="80px;" alt="gainskills"/><br />
+        <sub><b>gainskills</b></sub>
+      </a><br />
+      <sub>📖 </sub>
+    </td>
     <td align="center">
       <a href="https://github.com/gensecai-dev">
         <img src="https://avatars.githubusercontent.com/u/216218359?v=4" width="80px;" alt="gensecai-dev"/><br />
         <sub><b>gensecai-dev</b></sub>
       </a><br />
-      <sub>💬</sub>
+      <sub>💻 </sub>
     </td>
   </tr>
 </table>
