@@ -159,6 +159,57 @@ validate_frequency() {
     esac
 }
 
+# Function to detect desktop environment (Fix for Issue #12)
+detect_desktop_environment() {
+    # Check for display managers
+    if systemctl is-active --quiet gdm 2>/dev/null || \
+       systemctl is-active --quiet gdm3 2>/dev/null || \
+       systemctl is-active --quiet lightdm 2>/dev/null || \
+       systemctl is-active --quiet sddm 2>/dev/null; then
+        echo "true"
+        return
+    fi
+
+    # Check for DISPLAY or WAYLAND environment
+    if [[ -n "${DISPLAY:-}" ]] || [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+        echo "true"
+        return
+    fi
+
+    # Check for desktop packages
+    if dpkg -l 2>/dev/null | grep -qE "ubuntu-desktop|kubuntu-desktop|xubuntu-desktop|gnome-shell|kde-plasma-desktop"; then
+        echo "true"
+        return
+    fi
+
+    # Check for running desktop sessions
+    if pgrep -x "gnome-shell" > /dev/null 2>&1 || \
+       pgrep -x "plasmashell" > /dev/null 2>&1 || \
+       pgrep -x "xfce4-session" > /dev/null 2>&1; then
+        echo "true"
+        return
+    fi
+
+    echo "false"
+}
+
+# Function to check if SSH keys exist (Fix for SSH lockout issue)
+check_ssh_keys_exist() {
+    local has_keys=false
+
+    # Check for authorized_keys in common locations
+    for user_home in /root /home/*; do
+        if [[ -d "$user_home" ]] && [[ -f "${user_home}/.ssh/authorized_keys" ]]; then
+            if [[ -s "${user_home}/.ssh/authorized_keys" ]]; then
+                has_keys=true
+                break
+            fi
+        fi
+    done
+
+    echo "$has_keys"
+}
+
 # Function to update and upgrade packages with Ubuntu Pro integration
 update_system() {
     print_message "$GREEN" "Updating package lists..."
@@ -656,8 +707,13 @@ EOF
 }
 
 # Function to configure AppArmor with Ubuntu 25.x profiles
+# Fix for Issue #12: Desktop environment detection to prevent breaking GUI apps
 configure_apparmor() {
     print_message "$GREEN" "Configuring AppArmor with Ubuntu 25.x profiles..."
+
+    # Detect if running on desktop environment
+    local is_desktop
+    is_desktop=$(detect_desktop_environment)
 
     # Ensure AppArmor is enabled
     systemctl enable apparmor
@@ -669,21 +725,55 @@ configure_apparmor() {
         update-grub
     fi
 
-    # Install additional profiles
-    if [[ -d /usr/share/apparmor/extra-profiles/ ]]; then
-        cp -n /usr/share/apparmor/extra-profiles/* /etc/apparmor.d/ 2>/dev/null || true
-    fi
+    if [[ "$is_desktop" == "true" ]]; then
+        # Desktop environment detected - use complain mode for extra profiles
+        print_message "$YELLOW" "Desktop environment detected!"
+        print_message "$YELLOW" "Using COMPLAIN mode for experimental AppArmor profiles to prevent breaking GUI applications."
 
-    # Enable all profiles
-    find /etc/apparmor.d -maxdepth 1 -type f -exec aa-enforce {} \; 2>/dev/null || true
+        # Only enforce known-safe profiles that won't break desktop apps
+        local safe_profiles=(
+            "/etc/apparmor.d/usr.sbin.sshd"
+            "/etc/apparmor.d/usr.sbin.rsyslogd"
+            "/etc/apparmor.d/usr.sbin.cron"
+            "/etc/apparmor.d/usr.sbin.chronyd"
+        )
+
+        for profile in "${safe_profiles[@]}"; do
+            if [[ -f "$profile" ]]; then
+                aa-enforce "$profile" 2>/dev/null || true
+            fi
+        done
+
+        # Set extra profiles to complain mode (monitor but don't block)
+        if [[ -d /usr/share/apparmor/extra-profiles/ ]]; then
+            for profile in /usr/share/apparmor/extra-profiles/*; do
+                if [[ -f "$profile" ]]; then
+                    aa-complain "$profile" 2>/dev/null || true
+                fi
+            done
+        fi
+
+        print_message "$GREEN" "AppArmor configured with desktop-safe settings"
+    else
+        # Server environment - apply full hardening
+        print_message "$GREEN" "Server environment detected. Applying full AppArmor enforcement..."
+
+        # Install additional profiles
+        if [[ -d /usr/share/apparmor/extra-profiles/ ]]; then
+            cp -n /usr/share/apparmor/extra-profiles/* /etc/apparmor.d/ 2>/dev/null || true
+        fi
+
+        # Enable all profiles
+        find /etc/apparmor.d -maxdepth 1 -type f -exec aa-enforce {} \; 2>/dev/null || true
+
+        print_message "$GREEN" "AppArmor profiles enforced"
+    fi
 
     # Configure snap confinement (Ubuntu 25.x enhanced)
     if command -v snap &> /dev/null; then
         print_message "$BLUE" "Configuring strict snap confinement..."
         snap set system experimental.parallel-instances=true 2>/dev/null || true
     fi
-
-    print_message "$GREEN" "AppArmor profiles enforced"
 }
 
 # Function to configure ClamAV with Ubuntu 25.x optimizations
@@ -965,16 +1055,19 @@ EOF
 }
 
 # Function to configure Fail2ban with Ubuntu 25.x optimizations
+# Fix: Made less aggressive to prevent locking out legitimate users
 configure_fail2ban() {
     print_message "$GREEN" "Configuring Fail2ban with systemd integration..."
 
     backup_file "/etc/fail2ban/jail.conf"
 
     # Create jail.local with Ubuntu 25.x optimizations
+    # Fix: Increased maxretry and reduced initial bantime to prevent legitimate user lockouts
     cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
 # Ubuntu 25.x Fail2ban Configuration
-bantime  = 1h
+# NOTE: Settings adjusted to prevent locking out legitimate users
+bantime  = 10m
 findtime  = 10m
 maxretry = 5
 backend = systemd
@@ -983,6 +1076,11 @@ logencoding = utf-8
 enabled = false
 mode = normal
 filter = %(__name__)s[mode=%(mode)s]
+
+# Progressive ban time - doubles with each offense (requires fail2ban 0.11+)
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 1d
 
 # Destination email
 destemail = root@localhost
@@ -993,6 +1091,7 @@ mta = sendmail
 action = %(action_mwl)s
 
 # Ignore localhost and private networks
+# Add your CI/CD, monitoring, and trusted IPs here
 ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 
 [sshd]
@@ -1000,9 +1099,9 @@ enabled = true
 port = ssh
 logpath = %(sshd_log)s
 backend = %(sshd_backend)s
-maxretry = 3
-bantime = 2h
-findtime = 20m
+maxretry = 5
+bantime = 10m
+findtime = 10m
 
 [sshd-ddos]
 enabled = true
@@ -1018,8 +1117,8 @@ bantime = 10m
 enabled = true
 backend = systemd
 journalmatch = _SYSTEMD_UNIT=sshd.service + _COMM=sshd
-maxretry = 3
-bantime = 2h
+maxretry = 5
+bantime = 10m
 
 # Protect against port scanning
 [port-scan]
@@ -1049,14 +1148,44 @@ EOF
 }
 
 # Function to harden SSH for Ubuntu 25.x
+# Fix: Check for SSH keys before disabling password authentication
 harden_ssh() {
     print_message "$GREEN" "Hardening SSH configuration for Ubuntu 25.x..."
 
     backup_file "/etc/ssh/sshd_config"
 
+    # Check for existing SSH keys before disabling password authentication
+    local has_keys
+    has_keys=$(check_ssh_keys_exist)
+    local password_auth="no"
+
+    if [[ "$has_keys" == "false" ]]; then
+        print_message "$RED" "╔══════════════════════════════════════════════════════════════╗"
+        print_message "$RED" "║           ⚠️  WARNING: NO SSH KEYS FOUND                      ║"
+        print_message "$RED" "╠══════════════════════════════════════════════════════════════╣"
+        print_message "$RED" "║ No SSH authorized_keys files found on this system.           ║"
+        print_message "$RED" "║ Disabling password authentication will LOCK YOU OUT!         ║"
+        print_message "$RED" "║                                                              ║"
+        print_message "$RED" "║ Options:                                                     ║"
+        print_message "$RED" "║ 1. Add SSH keys first, then re-run this script               ║"
+        print_message "$RED" "║ 2. Keep password authentication enabled (less secure)        ║"
+        print_message "$RED" "╚══════════════════════════════════════════════════════════════╝"
+
+        read -p "Keep password authentication enabled? (Y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            print_message "$YELLOW" "Password authentication will remain ENABLED for safety"
+            password_auth="yes"
+        else
+            print_message "$RED" "Proceeding with password authentication DISABLED - ensure you have console access!"
+        fi
+    else
+        print_message "$GREEN" "SSH keys found. Safe to disable password authentication."
+    fi
+
     # Create hardened SSH config using Include directive
     mkdir -p /etc/ssh/sshd_config.d/
-    cat > /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
+    cat > /etc/ssh/sshd_config.d/99-hardening.conf << EOF
 # Ubuntu 25.x SSH Hardening Configuration
 # Protocol and Network
 Protocol 2
@@ -1073,7 +1202,7 @@ HostKey /etc/ssh/ssh_host_ed25519_key
 # Authentication
 PermitRootLogin no
 PubkeyAuthentication yes
-PasswordAuthentication no
+PasswordAuthentication ${password_auth}
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 KerberosAuthentication no
@@ -1081,7 +1210,17 @@ GSSAPIAuthentication no
 UsePAM yes
 MaxAuthTries 3
 MaxSessions 10
-AuthenticationMethods publickey
+EOF
+
+    # Add AuthenticationMethods based on password_auth setting
+    if [[ "$password_auth" == "yes" ]]; then
+        echo "AuthenticationMethods publickey,password" >> /etc/ssh/sshd_config.d/99-hardening.conf
+    else
+        echo "AuthenticationMethods publickey" >> /etc/ssh/sshd_config.d/99-hardening.conf
+    fi
+
+    # Continue with the rest of the config
+    cat >> /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
 
 # Security Features
 StrictModes yes
@@ -1176,31 +1315,40 @@ EOF
     systemctl restart sshd
 
     print_message "$GREEN" "SSH hardened successfully"
-    print_message "$YELLOW" "WARNING: Password authentication is disabled. Ensure SSH keys are configured!"
+    if [[ "$password_auth" == "yes" ]]; then
+        print_message "$YELLOW" "NOTE: Password authentication ENABLED (no SSH keys found)"
+        print_message "$YELLOW" "Recommendation: Add SSH keys and re-run this script for better security"
+    else
+        print_message "$YELLOW" "WARNING: Password authentication is disabled. Ensure SSH keys are configured!"
+    fi
 }
 
 # Function to configure system limits for Ubuntu 25.x
+# Fix: Increased limits to support production workloads without breaking services
 configure_limits() {
     print_message "$GREEN" "Configuring system security limits..."
 
     backup_file "/etc/security/limits.conf"
 
     # Add security limits
+    # NOTE: Limits increased from original values to support production workloads
+    # Original: nproc 512/1024, maxlogins 10 - too restrictive for many use cases
     cat >> /etc/security/limits.conf << 'EOF'
 
-# Ubuntu 25.x Security Limits
-# Disable core dumps
+# Ubuntu 25.x Security Limits (Production-ready values)
+# Disable core dumps (security - prevents sensitive data leakage)
 * soft core 0
 * hard core 0
 
-# Limit number of processes
-* soft nproc 512
-* hard nproc 1024
+# Limit number of processes (increased for production workloads)
+# Original was 512/1024 which breaks many applications
+* soft nproc 4096
+* hard nproc 8192
 root soft nproc unlimited
 root hard nproc unlimited
 
-# Limit number of open files
-* soft nofile 1024
+# Limit number of open files (sufficient for most applications)
+* soft nofile 65536
 * hard nofile 65536
 
 # Limit max locked memory
@@ -1219,29 +1367,30 @@ root hard nproc unlimited
 * soft cpu unlimited
 * hard cpu unlimited
 
-# Limit max number of logins
-* soft maxlogins 10
-* hard maxlogins 10
+# Limit max number of logins (increased for multi-user systems)
+# Original was 10 which is too restrictive for busy servers
+* soft maxlogins 50
+* hard maxlogins 50
 
 # Limit priority
 * soft priority 0
 * hard priority 0
 
 # Limit max number of system logins
-* soft maxsyslogins 3
-* hard maxsyslogins 3
+* soft maxsyslogins 20
+* hard maxsyslogins 20
 EOF
 
-    # Configure systemd limits
+    # Configure systemd limits (production-ready values)
     mkdir -p /etc/systemd/system.conf.d/
     cat > /etc/systemd/system.conf.d/99-limits.conf << 'EOF'
 [Manager]
-# Ubuntu 25.x Systemd Limits
+# Ubuntu 25.x Systemd Limits (Production-ready)
 DefaultLimitCORE=0
-DefaultLimitNOFILE=1024:65536
-DefaultLimitNPROC=512:1024
+DefaultLimitNOFILE=65536:65536
+DefaultLimitNPROC=4096:8192
 DefaultLimitMEMLOCK=64M
-DefaultTasksMax=512
+DefaultTasksMax=4096
 EOF
 
     # Reload systemd
@@ -2212,8 +2361,8 @@ main() {
     print_message "$YELLOW" "📊 Audit Results: ${LOG_DIR}/initial-audit/"
     print_message "$YELLOW" "📈 JSON Compliance Report: ${LOG_DIR}/compliance-report.json"
     print_message ""
-    print_message "$RED" "⚠️  CRITICAL: Ensure you have SSH key access before disconnecting!"
-    print_message "$RED" "⚠️  Password authentication has been disabled for security."
+    print_message "$RED" "⚠️  CRITICAL: Verify SSH access from another terminal before disconnecting!"
+    print_message "$RED" "⚠️  Review SSH settings in /etc/ssh/sshd_config.d/99-hardening.conf"
     print_message ""
     print_message "$BLUE" "🔒 Ubuntu 25.x Features Enabled:"
     print_message "$BLUE" "   ✓ Chrony with NTS (Network Time Security)"

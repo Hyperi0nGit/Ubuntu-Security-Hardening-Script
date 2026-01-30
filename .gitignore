@@ -1,0 +1,28 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-*
+
+# Internal documentation (not for public repo)
+issue12.md
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+
+# Test outputs
+test-results/
+coverage/
