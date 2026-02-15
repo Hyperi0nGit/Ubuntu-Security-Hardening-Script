@@ -708,6 +708,13 @@ We're grateful to everyone who has contributed to making this project better! Th
 <table>
   <tr>
     <td align="center">
+      <a href="https://github.com/BoozeLee">
+        <img src="https://avatars.githubusercontent.com/u/96494827?v=4" width="80px;" alt="BoozeLee"/><br />
+        <sub><b>BoozeLee</b></sub>
+      </a><br />
+      <sub>📖 </sub>
+    </td>
+    <td align="center">
       <a href="https://github.com/Kingcitaldo125">
         <img src="https://avatars.githubusercontent.com/u/25781344?v=4" width="80px;" alt="Kingcitaldo125"/><br />
         <sub><b>Kingcitaldo125</b></sub>
@@ -728,6 +735,8 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>🐛 </sub>
     </td>
+    </tr>
+    <tr>
     <td align="center">
       <a href="https://github.com/actions-user">
         <img src="https://avatars.githubusercontent.com/u/65916846?v=4" width="80px;" alt="actions-user"/><br />
@@ -735,8 +744,6 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>💻 </sub>
     </td>
-    </tr>
-    <tr>
     <td align="center">
       <a href="https://github.com/alokemajumder">
         <img src="https://avatars.githubusercontent.com/u/26596583?v=4" width="80px;" alt="alokemajumder"/><br />
@@ -758,6 +765,8 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>💬</sub>
     </td>
+    </tr>
+    <tr>
     <td align="center">
       <a href="https://github.com/cropduster32">
         <img src="https://avatars.githubusercontent.com/u/76622404?v=4" width="80px;" alt="cropduster32"/><br />
@@ -765,8 +774,6 @@ We're grateful to everyone who has contributed to making this project better! Th
       </a><br />
       <sub>🐛 </sub>
     </td>
-    </tr>
-    <tr>
     <td align="center">
       <a href="https://github.com/gainskills">
         <img src="https://avatars.githubusercontent.com/u/1937472?v=4" width="80px;" alt="gainskills"/><br />
