@@ -1,7 +1,7 @@
 # Ubuntu Security Hardening Scripts
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ubuntu](https://img.shields.io/badge/Ubuntu-18.04%20|%2020.04%20|%2022.04%20|%2024.04%20|%2025.x-orange)](https://ubuntu.com/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-18.04%20|%2020.04%20|%2022.04%20|%2024.04%20|%2025.x%20|%2026.04-orange)](https://ubuntu.com/)
 [![Bash](https://img.shields.io/badge/Bash-5.0%2B-green)](https://www.gnu.org/software/bash/)
 [![Security](https://img.shields.io/badge/Security-Hardening-blue)](https://github.com/gensecaihq)
 [![Issues Fixed](https://img.shields.io/badge/Issues-Fixed-success)](https://github.com/gensecaihq/Ubuntu-Security-Hardening-Script/issues)
@@ -15,6 +15,7 @@ Production-grade security hardening scripts for Ubuntu systems that implement co
 | **ubuntu-hardening-original.sh** | 2.0 | 18.04 / 20.04 / 22.04 | ✅ Production | Legacy-compatible, cron-based |
 | **ubuntu-hardening-24-04.sh** | 3.0 | 24.04 LTS | ✅ Production | Systemd timers, Ubuntu Pro |
 | **ubuntu-hardening-25.sh** | 4.0 | 25.04 / 25.10 | ✅ Production | Chrony NTS, cgroup v2, Intel TDX |
+| **ubuntu-hardening-26_04.sh** | 6.0 | 26.04 LTS | ✅ Production | Chrony NTS, AppArmor, SSH hardening |
 
 ## 🆕 What's New
 
@@ -32,7 +33,8 @@ Production-grade security hardening scripts for Ubuntu systems that implement co
 
 **Other Improvements:**
 - ✅ **New Ubuntu 25.x script** with cutting-edge security features
-- ✅ **All fixes applied to all 3 scripts** (original, 24.04, 25.x)
+- ✅ **New Ubuntu 26.04 script** with updated hardening and modern defaults
+- ✅ **All fixes applied to all 4 scripts** (original, 24.04, 25.x, 26.04)
 - ✅ **Enhanced error handling** across all versions
 - ✅ **Production-tested** and syntax-validated with `bash -n`
 
@@ -118,6 +120,11 @@ Production-grade security hardening scripts for Ubuntu systems that implement co
    sudo ./ubuntu-hardening-25.sh
    ```
 
+   **For Ubuntu 26.04 LTS:**
+   ```bash
+   sudo ./ubuntu-hardening-26_04.sh
+   ```
+
 ### Advanced Installation
 
 **With logging to file:**
@@ -186,6 +193,18 @@ lsb_release -a
 - **io_uring Restrictions**: Enhanced security for async I/O
 
 **All Fixes Included**: All fixes from 24.04 script pre-applied
+
+### ubuntu-hardening-26_04.sh (v6.0)
+**Target**: Ubuntu 26.04 LTS
+
+**Features:**
+- Chrony with Network Time Security (NTS)
+- AIDE, auditd, AppArmor, UFW, and Fail2Ban configuration
+- SSH hardening with modern crypto defaults
+- Unattended upgrades and sysctl hardening
+- Systemd security drop-ins for service confinement
+
+**All Fixes Included**: All fixes from previous scripts pre-applied
 
 ## 🛡️ Security Controls Applied
 

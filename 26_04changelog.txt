@@ -1,0 +1,61 @@
+Ubuntu Hardening Script Changelog: ubuntu-hardening-26_04.sh
+(July 0206)
+
+Key Differences vs ubuntu-hardening-25.sh
+
+1. Target Version
+- ubuntu-hardening-25.sh is optimized for Ubuntu 25.04 / 25.10.
+- ubuntu-hardening-26_04.sh is optimized for Ubuntu 26.04 LTS.
+
+2. Script Version and Naming
+- 25 script is version 4.0.
+- 26.04 script is version 6.0.
+
+3. Scope and Size
+- 25 script is much larger and contains extended hardening modules, additional feature flags, and more extensive configuration sections.
+- 26.04 script is more concise and focuses on core hardening steps.
+
+4. Feature Set
+- 25 script includes advanced modules such as:
+  - AppArmor profile handling and desktop environment detection
+  - ClamAV scan service and timer
+  - OpenSCAP scan service and timer
+  - Cloud IMDS protection
+  - Kernel lockdown helper
+  - Additional audit rules and LOTL detection
+  - System limits configuration
+  - Ubuntu 25.x specific service hardening drop-ins
+- 26.04 script includes a streamlined hardening flow with:
+  - Chrony NTS configuration
+  - AIDE configuration and systemd timer
+  - auditd configuration
+  - AppArmor enablement
+  - UFW and Fail2Ban setup
+  - SSH hardening
+  - unattended upgrades
+  - sysctl hardening
+  - systemd security drop-in for sshd
+
+5. Ubuntu-specific optimizations
+- 25 script includes explicit Ubuntu 25.x feature flags and kernel version assumptions.
+- 26.04 script uses a simpler `UBUNTU_VERSION="26.04"` check and warns when the version does not match.
+
+6. Systemd and service handling
+- 25 script contains many specialized service drop-ins and timer configurations for security tools.
+- 26.04 script uses fewer service-specific hardening additions and is focused on essential service enablement.
+
+7. SSH hardening strategy
+- 25 script has a broader SSH hardening configuration with certificate guidance and FIDO2 recommendation.
+- 26.04 script applies a basic SSH hardening config with a lockout prevention check for authorized keys.
+
+8. Error handling and helper utilities
+- 25 script includes dedicated helpers for cleanup, frequency validation, desktop environment detection, and more detailed environment checks.
+- 26.04 script includes only core helpers for root check, version check, system requirements, and backups.
+
+9. Package installation
+- 25 script has a large install list with Ubuntu 25-specific tooling and extended security packages.
+- 26.04 script installs a broad but slightly more standard package list, with a focus on core hardening tools.
+
+Summary
+- ubuntu-hardening-25.sh is a richer, more feature-complete script for Ubuntu 25.x with extensive hardening modules.
+- ubuntu-hardening-26_04.sh is a newer but leaner script for Ubuntu 26.04 LTS, emphasizing essential security controls and a smaller trusted surface.
