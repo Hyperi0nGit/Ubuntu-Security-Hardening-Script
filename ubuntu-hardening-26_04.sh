@@ -1,5 +1,6 @@
 #!/bin/bash
 # Ubuntu 26.04 Security Hardening Script - Production Grade
+# hyperi0n - Brendan Berkenshire & ChatGPT
 # GitHub: https://github.com/gensecaihq/Ubuntu-Security-Hardening-Script
 # License: MIT License
 # Version: 5.0
